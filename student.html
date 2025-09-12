@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>واجهة الطالب</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* تم دمج الـ CSS هنا للسهولة، يمكنك فصله لاحقًا */
+        :root { --primary: #2196F3; --primary-dark: #0d8aee; --primary-light: #e3f2fd; --secondary: #FFCA28; --dark: #212121; --light: #f5faff; --gray: #757575; --gray-light: #e0e0e0; --white: #ffffff; --radius: 12px; --shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        body { font-family: 'Segoe UI', 'Cairo', sans-serif; background: var(--light); color: var(--dark); margin: 0; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px 15px; }
+        header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 15px 0; box-shadow: var(--shadow); }
+        .header-content { display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; padding: 0 15px; }
+        .profile-info { display: flex; align-items: center; gap: 15px; }
+        .profile-info h2 { font-size: 1.5rem; margin: 0; }
+        #logoutBtn { background: var(--secondary); color: var(--dark); border: none; padding: 10px 15px; border-radius: var(--radius); cursor: pointer; font-weight: bold; }
+        .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-top: 25px; }
+        .card-header h3 { font-size: 1.4rem; color: var(--primary); margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        select { width: 100%; padding: 12px; border: 1px solid var(--gray-light); border-radius: 8px; font-size: 1rem; }
+        #lessonsList { list-style: none; padding: 0; margin-top: 20px; }
+        #lessonsList li { background: var(--primary-light); padding: 18px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-right: 4px solid var(--primary); }
+        #lessonsList li:hover { background: #d9ebff; }
+        .lesson-title { font-weight: bold; }
+        .lesson-score { background: var(--secondary); color: var(--dark); font-weight: bold; padding: 5px 12px; border-radius: 20px; }
+        .lesson-score.no-score { background: var(--gray-light); color: var(--gray); }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="profile-info">
+                <img id="profilePic" style="width: 50px; height: 50px; border-radius: 50%;" src="https://ui-avatars.com/api/?name=?&background=FFCA28&color=212121" alt="Profile">
+                <h2 id="studentName">أهلاً بك</h2>
+            </div>
+            <button id="logoutBtn">تسجيل الخروج</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-book-open"></i> اختر الدرس</h3>
+            </div>
+            <div class="controls">
+                <select id="classSelect" onchange="loadSubjects(this.value)"><option>-- تحميل الصفوف... --</option></select>
+                <select id="subjectSelect" onchange="loadChapters(this.value)" disabled><option>-- اختر المادة --</option></select>
+                <select id="chapterSelect" onchange="loadLessons()" disabled><option>-- اختر الفصل --</option></select>
+            </div>
+            <ul id="lessonsList">
+                <li class="empty-state">اختر من القوائم أعلاه لعرض الدروس</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
