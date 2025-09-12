@@ -6,57 +6,76 @@
     <title>واجهة الطالب</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* تم دمج الـ CSS هنا للسهولة، يمكنك فصله لاحقًا */
-        :root { --primary: #2196F3; --primary-dark: #0d8aee; --primary-light: #e3f2fd; --secondary: #FFCA28; --dark: #212121; --light: #f5faff; --gray: #757575; --gray-light: #e0e0e0; --white: #ffffff; --radius: 12px; --shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        body { font-family: 'Segoe UI', 'Cairo', sans-serif; background: var(--light); color: var(--dark); margin: 0; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px 15px; }
-        header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 15px 0; box-shadow: var(--shadow); }
-        .header-content { display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; padding: 0 15px; }
-        .profile-info { display: flex; align-items: center; gap: 15px; }
-        .profile-info h2 { font-size: 1.5rem; margin: 0; }
+        :root { --primary: #007bff; --secondary: #FFCA28; --light: #f8f9fa; --dark: #343a40; --radius: 8px; --shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); color: var(--dark); margin: 0; }
+        .hidden { display: none !important; }
+        header { background: linear-gradient(90deg, #0056b3, #007bff); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        header h2 { margin: 0; }
         #logoutBtn { background: var(--secondary); color: var(--dark); border: none; padding: 10px 15px; border-radius: var(--radius); cursor: pointer; font-weight: bold; }
-        .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-top: 25px; }
-        .card-header h3 { font-size: 1.4rem; color: var(--primary); margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px; }
-        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
-        select { width: 100%; padding: 12px; border: 1px solid var(--gray-light); border-radius: 8px; font-size: 1rem; }
-        #lessonsList { list-style: none; padding: 0; margin-top: 20px; }
-        #lessonsList li { background: var(--primary-light); padding: 18px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-right: 4px solid var(--primary); }
-        #lessonsList li:hover { background: #d9ebff; }
-        .lesson-title { font-weight: bold; }
-        .lesson-score { background: var(--secondary); color: var(--dark); font-weight: bold; padding: 5px 12px; border-radius: 20px; }
-        .lesson-score.no-score { background: var(--gray-light); color: var(--gray); }
-        .spinner { width: 40px; height: 40px; border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; }
+        .profile { display: flex; align-items: center; gap: 20px; }
+        .profile img { width: 60px; height: 60px; border-radius: 50%; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        #lessonsList { list-style: none; padding: 0; }
+        #lessonsList li { background: #f1f1f1; padding: 15px; border-radius: 4px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .spinner { width: 30px; height: 30px; border: 3px solid rgba(0,0,0,0.1); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+        #lessonDetailView h3 { text-align: center; margin-bottom: 20px; }
+        .lesson-part { margin-bottom: 20px; }
+        .part-header { font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary); }
+        .content-box, iframe { width: 100%; box-sizing: border-box; }
+        iframe { height: 500px; border: 1px solid #ddd; border-radius: 4px; }
+        .quiz-option { display: block; background: #f9f9f9; padding: 12px; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+        .quiz-option.selected { border-color: var(--primary); background: #e7f1ff; }
+        .quiz-nav { display: flex; justify-content: center; margin-top: 20px; }
+        #quizResult { text-align: center; }
     </style>
 </head>
 <body>
     <header>
-        <div class="header-content">
-            <div class="profile-info">
-                <img id="profilePic" style="width: 50px; height: 50px; border-radius: 50%;" src="https://ui-avatars.com/api/?name=?&background=FFCA28&color=212121" alt="Profile">
-                <h2 id="studentName">أهلاً بك</h2>
-            </div>
-            <button id="logoutBtn">تسجيل الخروج</button>
-        </div>
+        <h2 id="studentName">أهلاً بك</h2>
+        <button id="logoutBtn">تسجيل الخروج</button>
     </header>
-
     <div class="container">
-        <div class="card">
-            <div class="card-header">
-                <h3><i class="fas fa-book-open"></i> اختر الدرس</h3>
-            </div>
+        <div class="card profile">
+            <img id="profilePic" alt="Profile Picture">
+            <h3>منطقة الطالب</h3>
+        </div>
+        <!-- Lesson Selection View -->
+        <div id="selectionView" class="card">
             <div class="controls">
                 <select id="classSelect" onchange="loadSubjects(this.value)"><option>-- تحميل الصفوف... --</option></select>
                 <select id="subjectSelect" onchange="loadChapters(this.value)" disabled><option>-- اختر المادة --</option></select>
                 <select id="chapterSelect" onchange="loadLessons()" disabled><option>-- اختر الفصل --</option></select>
             </div>
-            <ul id="lessonsList">
-                <li class="empty-state">اختر من القوائم أعلاه لعرض الدروس</li>
-            </ul>
+            <ul id="lessonsList"><li class="empty-state">اختر من القوائم أعلاه لعرض الدروس</li></ul>
+        </div>
+        <!-- Lesson Detail View -->
+        <div id="lessonDetailView" class="card hidden">
+            <button onclick="showSelectionView()"> &larr; العودة للدروس</button>
+            <h3 id="lessonTitle"></h3>
+            <div id="lessonContent"></div>
+            <!-- Quiz Section -->
+            <div id="quizPart" class="hidden">
+                <div class="part-header">اختبار الدرس</div>
+                <div id="quizQuestion">
+                    <p id="quizQuestionText"></p>
+                    <div id="quizOptions"></div>
+                </div>
+                <div id="quizNav" class="quiz-nav">
+                    <button id="quizNextBtn" onclick="handleQuizNav()">التالي</button>
+                </div>
+                <div id="quizResult" class="hidden">
+                    <h4>النتيجة النهائية</h4>
+                    <p id="quizScore" style="font-size: 2rem; font-weight: bold;"></p>
+                    <button onclick="startQuiz()">إعادة الاختبار</button>
+                </div>
+            </div>
         </div>
     </div>
-    
     <script src="script.js"></script>
 </body>
 </html>
+
