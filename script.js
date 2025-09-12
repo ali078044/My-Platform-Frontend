@@ -12,6 +12,8 @@ async function callApi(action, payload = {}) {
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
+      // prevent caching of POST requests in some browsers
+      cache: 'no-cache', 
       body: JSON.stringify({ action, payload }),
       headers: { 'Content-Type': 'application/json' }
     });
@@ -26,13 +28,13 @@ async function callApi(action, payload = {}) {
 // --- الموجه الرئيسي للواجهة الأمامية ---
 document.addEventListener('DOMContentLoaded', () => {
   const path = window.location.pathname;
-  if (path.includes('student.html')) {
+  if (path.includes('StudentInterface.html')) {
     handleStudentPage();
-  } else if (path.includes('register.html')) {
+  } else if (path.includes('Register.html')) {
     handleRegisterPage();
-  } else if (path.includes('admin.html')) {
+  } else if (path.includes('AdminInterface.html')) {
     handleAdminPage();
-  } else {
+  } else { // Default to login page (index.html)
     handleLoginPage();
   }
 });
@@ -55,11 +57,10 @@ function handleLoginPage() {
     const result = await callApi('login', { email, password });
     if (result.success) {
       localStorage.setItem('userData', JSON.stringify(result.user));
-      // توجيه المستخدم حسب دوره
       if (result.user.role === 'admin') {
-        window.location.href = 'admin.html';
+        window.location.href = 'AdminInterface.html';
       } else {
-        window.location.href = 'student.html';
+        window.location.href = 'StudentInterface.html';
       }
     } else {
       messageEl.textContent = result.message;
@@ -76,7 +77,6 @@ function handleRegisterPage() {
   const registerForm = document.getElementById('registerForm');
   if (!registerForm) return;
 
-  // جلب أسئلة الأمان
   callApi('getSecurityQuestions').then(result => {
     if (result.success) {
       const select = document.getElementById('secQ');
@@ -132,7 +132,7 @@ async function loadClasses() { const select = document.getElementById('classSele
 async function loadSubjects(selectedClass) { const select = document.getElementById('subjectSelect'); select.innerHTML = '<option>-- تحميل المواد... --</option>'; select.disabled = true; document.getElementById('chapterSelect').innerHTML = '<option>-- اختر الفصل --</option>'; document.getElementById('chapterSelect').disabled = true; const result = await callApi('getSubjects', { selectedClass }); if (result.success) { populateSelect(select, result.data, 'اختر المادة'); } }
 async function loadChapters(selectedSubject) { const select = document.getElementById('chapterSelect'); select.innerHTML = '<option>-- تحميل الفصول... --</option>'; select.disabled = true; const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject }; const result = await callApi('getChapters', payload); if (result.success) { populateSelect(select, result.data, 'اختر الفصل'); } }
 async function loadLessons() { const lessonsList = document.getElementById('lessonsList'); lessonsList.innerHTML = '<li class="empty-state"><div class="spinner"></div></li>'; const userData = JSON.parse(localStorage.getItem('userData')); const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject: document.getElementById('subjectSelect').value, selectedChapter: document.getElementById('chapterSelect').value, userEmail: userData.email }; if (!payload.selectedChapter) { lessonsList.innerHTML = '<li class="empty-state">اختر من القوائم أعلاه لعرض الدروس</li>'; return; } const result = await callApi('getLessons', payload); if (result.success && result.data.length > 0) { lessonsList.innerHTML = result.data.map(lesson => `<li onclick="showLessonDetail('${lesson.name.replace(/'/g, "\\'")}')"><span>${lesson.sequence}. ${lesson.name}</span> <span style="background: #e0e0e0; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">${lesson.score != null ? `الدرجة: ${lesson.score}` : 'لم يختبر'}</span></li>`).join(''); } else { lessonsList.innerHTML = '<li class="empty-state">لا توجد دروس متاحة.</li>'; } }
-async function showLessonDetail(lessonName) { currentLessonName = lessonName; const selectionView = document.getElementById('selectionView'); const detailView = document.getElementById('lessonDetailView'); const lessonContent = document.getElementById('lessonContent'); selectionView.classList.add('hidden'); detailView.classList.remove('hidden'); document.getElementById('lessonTitle').textContent = lessonName; lessonContent.innerHTML = '<div class="spinner"></div>'; document.getElementById('quizPart').classList.add('hidden'); const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject: document.getElementById('subjectSelect').value, selectedChapter: document.getElementById('chapterSelect').value, lessonName }; const result = await callApi('getLessonContent', payload); if (result.success) { const lesson = result.data; let html = ''; if (lesson.objective) html += `<div class="lesson-part"><div class="part-header">الهدف</div><div class="content-box">${lesson.objective}</div></div>`; if (lesson.lessonText) html += `<div class="lesson-part"><div class="part-header">الشرح</div><div class="content-box">${lesson.lessonText}</div></div>`; if (lesson.videoLink) { const videoId = lesson.videoLink.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/); if(videoId) html += `<div class="lesson-part"><div class="part-header">فيديو</div><iframe src="https://www.youtube.com/embed/${videoId[1]}" frameborder="0" allowfullscreen></iframe></div>`; } lessonContent.innerHTML = html; if (lesson.questions && lesson.questions.length > 0) { currentLessonQuestions = lesson.questions; document.getElementById('quizPart').classList.remove('hidden'); startQuiz(); } } else { lessonContent.innerHTML = `<div class="empty-state">${result.message}</div>`; } }
+async function showLessonDetail(lessonName) { currentLessonName = lessonName; const selectionView = document.getElementById('selectionView'); const detailView = document.getElementById('lessonDetailView'); const lessonContent = document.getElementById('lessonContent'); selectionView.classList.add('hidden'); detailView.classList.remove('hidden'); document.getElementById('lessonTitle').textContent = lessonName; lessonContent.innerHTML = '<div class="spinner"></div>'; document.getElementById('quizPart').classList.add('hidden'); const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject: document.getElementById('subjectSelect').value, selectedChapter: document.getElementById('chapterSelect').value, lessonName }; const result = await callApi('getLessonContent', payload); if (result.success) { const lesson = result.data; let html = ''; if (lesson.objective && lesson.objective !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">الهدف</div><div class="content-box">${lesson.objective}</div></div>`; if (lesson.lessonText && lesson.lessonText !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">الشرح</div><div class="content-box">${lesson.lessonText}</div></div>`; if (lesson.didYouKnow && lesson.didYouKnow !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">هل تعلم؟</div><div class="content-box">${lesson.didYouKnow}</div></div>`; if (lesson.summary && lesson.summary !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">الخلاصة</div><div class="content-box">${lesson.summary}</div></div>`; if (lesson.pdfLink && lesson.pdfLink !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">ملف PDF</div><iframe src="${lesson.pdfLink.replace('/view', '/preview')}"></iframe></div>`; if (lesson.videoLink && lesson.videoLink !== 'لا يوجد') { const videoId = lesson.videoLink.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/); if(videoId) html += `<div class="lesson-part"><div class="part-header">فيديو</div><iframe src="https://www.youtube.com/embed/${videoId[1]}" frameborder="0" allowfullscreen></iframe></div>`; } lessonContent.innerHTML = html; if (lesson.questions && lesson.questions.length > 0) { currentLessonQuestions = lesson.questions; document.getElementById('quizPart').classList.remove('hidden'); startQuiz(); } } else { lessonContent.innerHTML = `<div class="empty-state">${result.message}</div>`; } }
 function showSelectionView() { document.getElementById('selectionView').classList.remove('hidden'); document.getElementById('lessonDetailView').classList.add('hidden'); loadLessons(); }
 function populateSelect(selectElement, options, defaultText) { selectElement.innerHTML = `<option value="">-- ${defaultText} --</option>`; if(options && options.length > 0) { selectElement.innerHTML += options.map(o => `<option value="${o}">${o}</option>`).join(''); selectElement.disabled = false; } else { selectElement.disabled = true; } }
 function startQuiz() { currentQuestionIndex = 0; userScore = 0; document.getElementById('quizQuestion').classList.remove('hidden'); document.getElementById('quizResult').classList.add('hidden'); document.getElementById('quizNav').classList.remove('hidden'); document.getElementById('quizNextBtn').textContent = "التالي"; renderCurrentQuestion(); }
@@ -147,7 +147,6 @@ async function finishQuiz() { const finalScore = (userScore / currentLessonQuest
 function handleAdminPage() {
     const userDataString = localStorage.getItem('userData');
     if (!userDataString || JSON.parse(userDataString).role !== 'admin') {
-        // إذا لم يكن المستخدم مسجلاً كـ admin، أعد توجيهه لصفحة الدخول
         window.location.href = 'index.html';
         return;
     }
@@ -159,7 +158,6 @@ function handleAdminPage() {
         window.location.href = 'index.html';
     });
 
-    // --- إعداد Quill Editors ---
     const quillOptions = { theme: 'snow', modules: { toolbar: [['bold', 'italic'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] } };
     const editors = {
         objective: new Quill('#objective', quillOptions),
@@ -168,7 +166,6 @@ function handleAdminPage() {
         summary: new Quill('#summary', quillOptions)
     };
 
-    // --- إعداد بيانات القوائم المنسدلة ---
     const classes = ["الأول متوسط", "الثاني متوسط", "الثالث متوسط", "الرابع اعدادي", "الخامس اعدادي", "السادس اعدادي"];
     const subjects = ["الاسلامية", "اللغة العربية", "اللغة الانكليزية", "الرياضيات", "الاجتماعيات", "العلوم", "الكيمياء", "الفيزياء", "الأحياء", "الحاسوب"];
     const chapters = Array.from({ length: 10 }, (_, i) => `الفصل ${i + 1}`);
@@ -176,7 +173,6 @@ function handleAdminPage() {
     populateSelect(document.getElementById('subject'), subjects, 'اختر المادة');
     populateSelect(document.getElementById('chapter'), chapters, 'اختر الفصل');
 
-    // --- إنشاء حقول الأسئلة ---
     const questionsContainer = document.getElementById('questionsContainer');
     let questionsHTML = '';
     for (let i = 1; i <= 10; i++) {
@@ -191,7 +187,6 @@ function handleAdminPage() {
     }
     questionsContainer.innerHTML = questionsHTML;
 
-    // --- منطق التنقل بين الخطوات ---
     let currentStep = 1;
     const steps = document.querySelectorAll('.step');
     const nextBtn = document.getElementById('nextBtn');
@@ -209,7 +204,6 @@ function handleAdminPage() {
     nextBtn.addEventListener('click', () => { if (currentStep < 3) currentStep++; showStep(currentStep); });
     prevBtn.addEventListener('click', () => { if (currentStep > 1) currentStep--; showStep(currentStep); });
     
-    // --- منطق إرسال الفورم ---
     const form = document.getElementById('addLessonForm');
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -217,7 +211,6 @@ function handleAdminPage() {
         statusDiv.textContent = 'جاري الحفظ...';
         statusDiv.className = '';
 
-        // جمع البيانات
         const lessonData = {
             class: document.getElementById('class').value,
             subject: document.getElementById('subject').value,
