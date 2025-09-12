@@ -19,13 +19,15 @@
         .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         #lessonsList { list-style: none; padding: 0; }
-        #lessonsList li { background: #f1f1f1; padding: 15px; border-radius: 4px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        #lessonsList li { background: #f1f1f1; padding: 15px; border-radius: 4px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s; }
+        #lessonsList li:hover { background-color: #e0e0e0; }
         .spinner { width: 30px; height: 30px; border: 3px solid rgba(0,0,0,0.1); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
         #lessonDetailView h3 { text-align: center; margin-bottom: 20px; }
         .lesson-part { margin-bottom: 20px; }
         .part-header { font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary); }
         .content-box, iframe { width: 100%; box-sizing: border-box; }
+        .content-box { line-height: 1.7; }
         iframe { height: 500px; border: 1px solid #ddd; border-radius: 4px; }
         .quiz-option { display: block; background: #f9f9f9; padding: 12px; margin-bottom: 8px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
         .quiz-option.selected { border-color: var(--primary); background: #e7f1ff; }
@@ -78,4 +80,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
