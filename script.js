@@ -1,5 +1,5 @@
 // --- الإعدادات الرئيسية ---
-const API_URL = 'https://script.google.com/macros/s/AKfycbzFAKxyL9kccuW0Mjw1Z9fed7iS2kRNDKROlbROKkqMhqkeKjkNAVnsCyAc9-8LPZ_5vw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby2loIRZd6zPIsE-3pAERgHwi_4rz7sar-MngV6HVTTt6C2qktj1BTVZ3SdCeGj2kpAFA/exec';
 
 // --- متغيرات لحالة الاختبار ---
 let currentLessonQuestions = [];
@@ -219,7 +219,7 @@ function handleAdminPage() {
             lessonNumber: document.getElementById('lessonNumber').value,
             objective: editors.objective.root.innerHTML,
             didYouKnow: editors.didYouKnow.root.innerHTML,
-            lessonText: editors.lessonText.root.innerHTML,
+            lessonText: editors.text.root.innerHTML,
             summary: editors.summary.root.innerHTML,
             pdfLink: document.getElementById('pdfLink').value,
             videoLink: document.getElementById('videoLink').value,
