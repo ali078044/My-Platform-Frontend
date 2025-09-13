@@ -5,9 +5,26 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwL-h9y5dMWC_mPcXeZ2ZOQ
 let currentLessonData, lessonParts = [], currentPartIndex = -1;
 let currentQuestionIndex = 0, userScore = 0;
 
-// --- دالة مساعدة للتواصل مع الـ API ---
+// --- دالة مساعدة للتواصل مع الـ API مع نظام التخزين المؤقت لتحسين السرعة ---
 async function callApi(action, payload = {}) {
+    // قائمة الإجراءات التي يمكن تخزين نتائجها مؤقتاً لتسريع الأداء
+    const CACHEABLE_ACTIONS = ['getClasses', 'getSubjects', 'getChapters', 'getLessons', 'getLessonContent'];
+    const isCacheable = CACHEABLE_ACTIONS.includes(action);
+    let cacheKey = null;
+
+    if (isCacheable) {
+        // إنشاء مفتاح فريد للتخزين المؤقت بناءً على الإجراء والبيانات
+        cacheKey = `api_cache_${action}_${JSON.stringify(payload)}`;
+        const cachedData = sessionStorage.getItem(cacheKey);
+        if (cachedData) {
+            console.log("Loading from cache:", cacheKey);
+            // إرجاع البيانات من الذاكرة المؤقتة مباشرةً لتجنب انتظار الشبكة
+            return JSON.parse(cachedData);
+        }
+    }
+
     try {
+        console.log("Fetching from network:", action);
         const res = await fetch(API_URL, {
             method: 'POST',
             cache: 'no-cache',
@@ -17,7 +34,14 @@ async function callApi(action, payload = {}) {
         });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         const result = await res.json();
-        if (!result.success) {
+        
+        if (result.success) {
+            // إذا كان الإجراء قابلاً للتخزين والطلب ناجح، قم بحفظ النتيجة في الذاكرة المؤقتة
+            if (isCacheable && cacheKey) {
+                console.log("Saving to cache:", cacheKey);
+                sessionStorage.setItem(cacheKey, JSON.stringify(result));
+            }
+        } else {
           console.error("API Error Response:", result.message);
         }
         return result;
@@ -26,6 +50,7 @@ async function callApi(action, payload = {}) {
         return { success: false, message: `فشل الاتصال بالخادم: ${error.message}` };
     }
 }
+
 
 // --- الموجه الرئيسي للتطبيق ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -193,7 +218,7 @@ function navigateLesson(direction) {
 function showCurrentPart() {
     document.querySelectorAll('.lesson-part').forEach(p => {
         p.classList.add('hidden');
-        p.classList.remove('fullscreen-view'); // Remove fullscreen class from all parts
+        p.classList.remove('fullscreen-view');
     });
     
     if (currentPartIndex < 0 || currentPartIndex >= lessonParts.length) {
@@ -210,7 +235,6 @@ function showCurrentPart() {
     const partContainer = document.getElementById(`part-${partId}`);
     if (!partContainer) return;
     
-    // Add fullscreen class to specific parts for larger view
     if (['objective', 'summary', 'lessonText', 'pdfLink', 'videoLink'].includes(partId)) {
         partContainer.classList.add('fullscreen-view');
     }
@@ -230,9 +254,12 @@ function showCurrentPart() {
             }
             break;
         case 'videoLink':
-            const videoIdMatch = data.videoLink.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            // Robust regex to capture video ID from various YouTube URL formats
+            const videoIdMatch = data.videoLink.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
             if (videoIdMatch && videoIdMatch[1]) {
                 partContainer.querySelector('iframe').src = `https://www.youtube.com/embed/${videoIdMatch[1]}`;
+            } else {
+                 partContainer.innerHTML = "<p>رابط الفيديو غير صالح.</p>";
             }
             break;
         case 'quiz':
@@ -260,7 +287,7 @@ function updateNavButtons() {
     
     const partId = lessonParts[currentPartIndex];
     if (partId === 'quiz') {
-       // Quiz function will handle this
+       // Quiz function will handle the button text
     } else if (lessonParts[currentPartIndex + 1] === 'end') {
         nextBtn.innerHTML = 'العودة للدروس <i class="fas fa-home"></i>';
     } else {
@@ -357,4 +384,3 @@ function retakeQuiz() {
 }
 
 function handleAdminPage() { /* Not implemented for student view */ }
-
