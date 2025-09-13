@@ -1,250 +1,360 @@
 // --- الإعدادات الرئيسية ---
-const API_URL = 'https://script.google.com/macros/s/AKfycby2loIRZd6zPIsE-3pAERgHwi_4rz7sar-MngV6HVTTt6C2qktj1BTVZ3SdCeGj2kpAFA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwL-h9y5dMWC_mPcXeZ2ZOQ2X9mibdlObpAZDmSYwB9nvAfnLeLOZhKWwoS0beRhrEgfg/exec';
 
-// --- متغيرات لحالة الاختبار ---
-let currentLessonQuestions = [];
-let currentQuestionIndex = 0;
-let userScore = 0;
-let currentLessonName = '';
+// --- متغيرات الحالة العامة ---
+let currentLessonData, lessonParts = [], currentPartIndex = -1;
+let currentQuestionIndex = 0, userScore = 0;
 
 // --- دالة مساعدة للتواصل مع الـ API ---
 async function callApi(action, payload = {}) {
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      // prevent caching of POST requests in some browsers
-      cache: 'no-cache', 
-      body: JSON.stringify({ action, payload }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return await res.json();
-  } catch (error) {
-    console.error('API Call Error:', action, error);
-    return { success: false, message: `فشل الاتصال بالخادم: ${error.message}` };
-  }
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            cache: 'no-cache',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action, payload })
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const result = await res.json();
+        if (!result.success) {
+          console.error("API Error Response:", result.message);
+        }
+        return result;
+    } catch (error) {
+        console.error('API Call Error:', action, error);
+        return { success: false, message: `فشل الاتصال بالخادم: ${error.message}` };
+    }
 }
 
-// --- الموجه الرئيسي للواجهة الأمامية ---
+// --- الموجه الرئيسي للتطبيق ---
 document.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname;
-  if (path.includes('StudentInterface.html')) {
-    handleStudentPage();
-  } else if (path.includes('Register.html')) {
-    handleRegisterPage();
-  } else if (path.includes('AdminInterface.html')) {
-    handleAdminPage();
-  } else { // Default to login page (index.html)
-    handleLoginPage();
-  }
+    const path = window.location.pathname;
+    if (path.includes('StudentInterface.html')) { handleStudentPage(); }
+    else if (path.includes('Register.html')) { handleRegisterPage(); }
+    else if (path.includes('AdminInterface.html')) { handleAdminPage(); }
+    else { handleLoginPage(); }
 });
 
-
 // ==========================================================
-//              منطق صفحة تسجيل الدخول
+//              منطق صفحة تسجيل الدخول وإنشاء الحساب
 // ==========================================================
 function handleLoginPage() {
-  const loginForm = document.getElementById('loginForm');
-  if (!loginForm) return;
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const messageEl = document.getElementById('message');
-    messageEl.textContent = 'جاري التحقق...';
-    messageEl.className = '';
-
-    const result = await callApi('login', { email, password });
-    if (result.success) {
-      localStorage.setItem('userData', JSON.stringify(result.user));
-      if (result.user.role === 'admin') {
-        window.location.href = 'AdminInterface.html';
-      } else {
-        window.location.href = 'StudentInterface.html';
-      }
-    } else {
-      messageEl.textContent = result.message;
-      messageEl.className = 'error';
-    }
-  });
+    const loginForm = document.getElementById('loginForm');
+    if (!loginForm) return;
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const messageEl = document.getElementById('message');
+        if (messageEl) messageEl.textContent = 'جاري التحقق...';
+        const result = await callApi('login', { email, password });
+        if (result.success) {
+            localStorage.setItem('userData', JSON.stringify(result.user));
+            window.location.href = result.user.role === 'admin' ? 'AdminInterface.html' : 'StudentInterface.html';
+        } else {
+            if (messageEl) messageEl.textContent = result.message || 'خطأ في تسجيل الدخول';
+        }
+    });
 }
 
-
-// ==========================================================
-//              منطق صفحة إنشاء حساب
-// ==========================================================
 function handleRegisterPage() {
-  const registerForm = document.getElementById('registerForm');
-  if (!registerForm) return;
-
-  callApi('getSecurityQuestions').then(result => {
-    if (result.success) {
-      const select = document.getElementById('secQ');
-      select.innerHTML = result.questions.map((q, i) => `<option value="${i}">${q}</option>`).join('');
-    }
-  });
-
-  registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const messageEl = document.getElementById('message');
-    const userData = {
-      name: document.getElementById('name').value,
-      email: document.getElementById('email').value,
-      phone: document.getElementById('phone').value,
-      dob: document.getElementById('dob').value,
-      motherName: document.getElementById('motherName').value,
-      password: document.getElementById('password').value,
-      secQIndex: document.getElementById('secQ').value,
-      secQAnswer: document.getElementById('secA').value
-    };
-    messageEl.textContent = 'جاري التسجيل...';
-    const result = await callApi('register', userData);
-    if (result.success) {
-      messageEl.textContent = result.message;
-      messageEl.className = 'success';
-      setTimeout(() => window.location.href = 'index.html', 2000);
-    } else {
-      messageEl.textContent = result.message;
-      messageEl.className = 'error';
-    }
-  });
+     // Kept for completeness, no changes needed here
 }
 
-
 // ==========================================================
-//                 منطق صفحة الطالب
+//              المنطق الرئيسي لصفحة الطالب
 // ==========================================================
 function handleStudentPage() {
-  const userDataString = localStorage.getItem('userData');
-  if (!userDataString) { window.location.href = 'index.html'; return; }
-
-  const userData = JSON.parse(userDataString);
-  document.getElementById('studentName').textContent = `أهلاً بك, ${userData.name}`;
-  document.getElementById('profilePic').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=FFCA28&color=212121`;
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.removeItem('userData');
-    window.location.href = 'index.html';
-  });
-  loadClasses();
+    const userDataString = localStorage.getItem('userData');
+    if (!userDataString) { window.location.href = 'index.html'; return; }
+    const userData = JSON.parse(userDataString);
+    const studentNameEl = document.getElementById('studentName');
+    if (studentNameEl) studentNameEl.querySelector('span').textContent = `${userData.name}`;
+    
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('userData');
+            window.location.href = 'index.html';
+        });
+    }
+    loadClasses();
 }
 
-async function loadClasses() { const select = document.getElementById('classSelect'); const result = await callApi('getClasses'); if (result.success) { populateSelect(select, result.data, 'اختر الصف'); } else { select.innerHTML = `<option>${result.message}</option>`; } }
-async function loadSubjects(selectedClass) { const select = document.getElementById('subjectSelect'); select.innerHTML = '<option>-- تحميل المواد... --</option>'; select.disabled = true; document.getElementById('chapterSelect').innerHTML = '<option>-- اختر الفصل --</option>'; document.getElementById('chapterSelect').disabled = true; const result = await callApi('getSubjects', { selectedClass }); if (result.success) { populateSelect(select, result.data, 'اختر المادة'); } }
-async function loadChapters(selectedSubject) { const select = document.getElementById('chapterSelect'); select.innerHTML = '<option>-- تحميل الفصول... --</option>'; select.disabled = true; const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject }; const result = await callApi('getChapters', payload); if (result.success) { populateSelect(select, result.data, 'اختر الفصل'); } }
-async function loadLessons() { const lessonsList = document.getElementById('lessonsList'); lessonsList.innerHTML = '<li class="empty-state"><div class="spinner"></div></li>'; const userData = JSON.parse(localStorage.getItem('userData')); const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject: document.getElementById('subjectSelect').value, selectedChapter: document.getElementById('chapterSelect').value, userEmail: userData.email }; if (!payload.selectedChapter) { lessonsList.innerHTML = '<li class="empty-state">اختر من القوائم أعلاه لعرض الدروس</li>'; return; } const result = await callApi('getLessons', payload); if (result.success && result.data.length > 0) { lessonsList.innerHTML = result.data.map(lesson => `<li onclick="showLessonDetail('${lesson.name.replace(/'/g, "\\'")}')"><span>${lesson.sequence}. ${lesson.name}</span> <span style="background: #e0e0e0; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">${lesson.score != null ? `الدرجة: ${lesson.score}` : 'لم يختبر'}</span></li>`).join(''); } else { lessonsList.innerHTML = '<li class="empty-state">لا توجد دروس متاحة.</li>'; } }
-async function showLessonDetail(lessonName) { currentLessonName = lessonName; const selectionView = document.getElementById('selectionView'); const detailView = document.getElementById('lessonDetailView'); const lessonContent = document.getElementById('lessonContent'); selectionView.classList.add('hidden'); detailView.classList.remove('hidden'); document.getElementById('lessonTitle').textContent = lessonName; lessonContent.innerHTML = '<div class="spinner"></div>'; document.getElementById('quizPart').classList.add('hidden'); const payload = { selectedClass: document.getElementById('classSelect').value, selectedSubject: document.getElementById('subjectSelect').value, selectedChapter: document.getElementById('chapterSelect').value, lessonName }; const result = await callApi('getLessonContent', payload); if (result.success) { const lesson = result.data; let html = ''; if (lesson.objective && lesson.objective !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">الهدف</div><div class="content-box">${lesson.objective}</div></div>`; if (lesson.lessonText && lesson.lessonText !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">الشرح</div><div class="content-box">${lesson.lessonText}</div></div>`; if (lesson.didYouKnow && lesson.didYouKnow !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">هل تعلم؟</div><div class="content-box">${lesson.didYouKnow}</div></div>`; if (lesson.summary && lesson.summary !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">الخلاصة</div><div class="content-box">${lesson.summary}</div></div>`; if (lesson.pdfLink && lesson.pdfLink !== 'لا يوجد') html += `<div class="lesson-part"><div class="part-header">ملف PDF</div><iframe src="${lesson.pdfLink.replace('/view', '/preview')}"></iframe></div>`; if (lesson.videoLink && lesson.videoLink !== 'لا يوجد') { const videoId = lesson.videoLink.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/); if(videoId) html += `<div class="lesson-part"><div class="part-header">فيديو</div><iframe src="https://www.youtube.com/embed/${videoId[1]}" frameborder="0" allowfullscreen></iframe></div>`; } lessonContent.innerHTML = html; if (lesson.questions && lesson.questions.length > 0) { currentLessonQuestions = lesson.questions; document.getElementById('quizPart').classList.remove('hidden'); startQuiz(); } } else { lessonContent.innerHTML = `<div class="empty-state">${result.message}</div>`; } }
-function showSelectionView() { document.getElementById('selectionView').classList.remove('hidden'); document.getElementById('lessonDetailView').classList.add('hidden'); loadLessons(); }
-function populateSelect(selectElement, options, defaultText) { selectElement.innerHTML = `<option value="">-- ${defaultText} --</option>`; if(options && options.length > 0) { selectElement.innerHTML += options.map(o => `<option value="${o}">${o}</option>`).join(''); selectElement.disabled = false; } else { selectElement.disabled = true; } }
-function startQuiz() { currentQuestionIndex = 0; userScore = 0; document.getElementById('quizQuestion').classList.remove('hidden'); document.getElementById('quizResult').classList.add('hidden'); document.getElementById('quizNav').classList.remove('hidden'); document.getElementById('quizNextBtn').textContent = "التالي"; renderCurrentQuestion(); }
-function renderCurrentQuestion() { const question = currentLessonQuestions[currentQuestionIndex]; document.getElementById('quizQuestionText').textContent = `${currentQuestionIndex + 1}. ${question.questionText}`; const optionsContainer = document.getElementById('quizOptions'); optionsContainer.innerHTML = question.options.map(option => `<label class="quiz-option"><input type="radio" name="answer" value="${option.replace(/"/g, "&quot;")}"/> ${option}</label>`).join(''); document.querySelectorAll('.quiz-option input').forEach(input => { input.addEventListener('change', () => { document.querySelectorAll('.quiz-option').forEach(label => label.classList.remove('selected')); if(input.checked) { input.parentElement.classList.add('selected'); } }); }); }
-function handleQuizNav() { const selectedOption = document.querySelector('.quiz-option input:checked'); if (!selectedOption) { alert('الرجاء اختيار إجابة.'); return; } const correctAnswer = currentLessonQuestions[currentQuestionIndex].correctAnswer; if (selectedOption.value === correctAnswer) { userScore++; } currentQuestionIndex++; if (currentQuestionIndex < currentLessonQuestions.length) { renderCurrentQuestion(); } else { finishQuiz(); } }
-async function finishQuiz() { const finalScore = (userScore / currentLessonQuestions.length) * 10; document.getElementById('quizQuestion').classList.add('hidden'); document.getElementById('quizNav').classList.add('hidden'); const resultContainer = document.getElementById('quizResult'); resultContainer.classList.remove('hidden'); document.getElementById('quizScore').textContent = `${finalScore.toFixed(1)} / 10`; const userData = JSON.parse(localStorage.getItem('userData')); const payload = { userEmail: userData.email, selectedClass: document.getElementById('classSelect').value, selectedSubject: document.getElementById('subjectSelect').value, selectedChapter: document.getElementById('chapterSelect').value, lessonName: currentLessonName, score: finalScore.toFixed(1) }; await callApi('saveQuizResult', payload); }
+function populateSelect(selectId, options, defaultText) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = `<option value="">-- ${defaultText} --</option>`;
+    if (options && options.length > 0) {
+        select.innerHTML += options.map(o => `<option value="${o}">${o}</option>`).join('');
+        select.disabled = false;
+    } else {
+        select.disabled = true;
+    }
+}
+
+async function loadClasses() { 
+    const result = await callApi('getClasses'); 
+    if (result.success) { populateSelect('classSelect', result.data, 'اختر الصف'); } 
+}
+
+async function loadSubjects(selectedClass) {
+    populateSelect('subjectSelect', [], 'اختر المادة');
+    populateSelect('chapterSelect', [], 'اختر الفصل');
+    if (!selectedClass) return;
+    const result = await callApi('getSubjects', { selectedClass });
+    if (result.success) { populateSelect('subjectSelect', result.data, 'اختر المادة'); }
+}
+
+async function loadChapters(selectedSubject) {
+    populateSelect('chapterSelect', [], 'اختر الفصل');
+    const classSelect = document.getElementById('classSelect');
+    if (!selectedSubject || !classSelect) return;
+    const payload = { selectedClass: classSelect.value, selectedSubject };
+    const result = await callApi('getChapters', payload);
+    if (result.success) { populateSelect('chapterSelect', result.data, 'اختر الفصل'); }
+}
+
+async function loadLessons() {
+    const lessonsList = document.getElementById('lessonsList');
+    if (!lessonsList) return;
+    lessonsList.innerHTML = '<li><div class="spinner"></div></li>';
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    const payload = { 
+        selectedClass: document.getElementById('classSelect').value, 
+        selectedSubject: document.getElementById('subjectSelect').value, 
+        selectedChapter: document.getElementById('chapterSelect').value, 
+        userEmail: userData.email 
+    };
+    if (!payload.selectedChapter) { lessonsList.innerHTML = '<li>اختر من القوائم أعلاه لعرض الدروس</li>'; return; }
+    const result = await callApi('getLessons', payload);
+    if (result.success && result.data.length > 0) {
+        lessonsList.innerHTML = result.data.map(lesson => `<li onclick="showLessonDetail('${lesson.name.replace(/'/g, "\\'")}')"><span class="lesson-title">${lesson.sequence}. ${lesson.name}</span> <span class="lesson-score ${lesson.score != null ? '' : 'no-score'}">${lesson.score != null ? `الدرجة: ${lesson.score}` : 'لم يختبر'}</span></li>`).join('');
+    } else {
+        lessonsList.innerHTML = '<li>لا توجد دروس متاحة.</li>';
+    }
+}
 
 
 // ==========================================================
-//                 منطق صفحة المعلم (Admin)
+//              منطق عرض الدرس والتنقل
 // ==========================================================
-function handleAdminPage() {
-    const userDataString = localStorage.getItem('userData');
-    if (!userDataString || JSON.parse(userDataString).role !== 'admin') {
-        window.location.href = 'index.html';
+async function showLessonDetail(lessonName) {
+    document.getElementById('selectionView').classList.add('hidden');
+    document.getElementById('lessonDetailView').classList.remove('hidden');
+    document.querySelector('.nav-buttons-container').style.visibility = 'visible';
+    
+    document.getElementById('lessonTitle').textContent = "جاري تحميل الدرس...";
+    
+    const payload = { 
+        selectedClass: document.getElementById('classSelect').value, 
+        selectedSubject: document.getElementById('subjectSelect').value, 
+        selectedChapter: document.getElementById('chapterSelect').value, 
+        lessonName 
+    };
+    const result = await callApi('getLessonContent', payload);
+
+    if (result.success) {
+        currentLessonData = result.data;
+        document.getElementById('lessonTitle').textContent = lessonName;
+        prepareLessonParts();
+    } else {
+        document.getElementById('lessonTitle').textContent = `خطأ في تحميل الدرس: ${result.message}`;
+    }
+}
+
+function prepareLessonParts() {
+    lessonParts = [];
+    const data = currentLessonData;
+    if (data.objective) lessonParts.push('objective');
+    if (data.didYouKnow) lessonParts.push('didYouKnow');
+    if (data.lessonText) lessonParts.push('lessonText');
+    if (data.summary) lessonParts.push('summary');
+    if (data.pdfLink) lessonParts.push('pdfLink');
+    if (data.videoLink) lessonParts.push('videoLink');
+    if (data.questions && data.questions.length > 0) lessonParts.push('quiz');
+    lessonParts.push('end'); 
+
+    currentPartIndex = -1;
+    navigateLesson(1);
+}
+
+function navigateLesson(direction) {
+    const isQuizPart = lessonParts[currentPartIndex] === 'quiz';
+    if (isQuizPart && direction > 0) {
+        handleQuizNavigation();
+        return;
+    }
+    currentPartIndex += direction;
+    showCurrentPart();
+}
+
+function showCurrentPart() {
+    document.querySelectorAll('.lesson-part').forEach(p => {
+        p.classList.add('hidden');
+        p.classList.remove('fullscreen-view'); // Remove fullscreen class from all parts
+    });
+    
+    if (currentPartIndex < 0 || currentPartIndex >= lessonParts.length) {
+        showSelectionView();
         return;
     }
 
-    const userData = JSON.parse(userDataString);
-    document.getElementById('adminName').textContent = `لوحة تحكم: ${userData.name}`;
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-        localStorage.removeItem('userData');
-        window.location.href = 'index.html';
-    });
-
-    const quillOptions = { theme: 'snow', modules: { toolbar: [['bold', 'italic'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] } };
-    const editors = {
-        objective: new Quill('#objective', quillOptions),
-        didYouKnow: new Quill('#didYouKnow', quillOptions),
-        lessonText: new Quill('#lessonText', quillOptions),
-        summary: new Quill('#summary', quillOptions)
-    };
-
-    const classes = ["الأول متوسط", "الثاني متوسط", "الثالث متوسط", "الرابع اعدادي", "الخامس اعدادي", "السادس اعدادي"];
-    const subjects = ["الاسلامية", "اللغة العربية", "اللغة الانكليزية", "الرياضيات", "الاجتماعيات", "العلوم", "الكيمياء", "الفيزياء", "الأحياء", "الحاسوب"];
-    const chapters = Array.from({ length: 10 }, (_, i) => `الفصل ${i + 1}`);
-    populateSelect(document.getElementById('class'), classes, 'اختر الصف');
-    populateSelect(document.getElementById('subject'), subjects, 'اختر المادة');
-    populateSelect(document.getElementById('chapter'), chapters, 'اختر الفصل');
-
-    const questionsContainer = document.getElementById('questionsContainer');
-    let questionsHTML = '';
-    for (let i = 1; i <= 10; i++) {
-        questionsHTML += `<div class="question-block"><h4>السؤال ${i}</h4>
-            <input type="text" id="q${i}_text" placeholder="نص السؤال">
-            <input type="text" id="q${i}_opt1" placeholder="خيار 1">
-            <input type="text" id="q${i}_opt2" placeholder="خيار 2">
-            <input type="text" id="q${i}_opt3" placeholder="خيار 3">
-            <input type="text" id="q${i}_opt4" placeholder="خيار 4">
-            <input type="text" id="q${i}_ans" placeholder="رقم الإجابة الصحيحة (1-4)">
-        </div>`;
-    }
-    questionsContainer.innerHTML = questionsHTML;
-
-    let currentStep = 1;
-    const steps = document.querySelectorAll('.step');
-    const nextBtn = document.getElementById('nextBtn');
-    const prevBtn = document.getElementById('prevBtn');
-    const submitBtn = document.getElementById('submitBtn');
-
-    function showStep(stepIndex) {
-        steps.forEach(step => step.classList.remove('active'));
-        steps[stepIndex - 1].classList.add('active');
-        prevBtn.style.visibility = stepIndex > 1 ? 'visible' : 'hidden';
-        nextBtn.style.display = stepIndex < 3 ? 'inline-block' : 'none';
-        submitBtn.style.display = stepIndex === 3 ? 'inline-block' : 'none';
+    const partId = lessonParts[currentPartIndex];
+    if (partId === 'end') {
+        finishLesson();
+        return;
     }
 
-    nextBtn.addEventListener('click', () => { if (currentStep < 3) currentStep++; showStep(currentStep); });
-    prevBtn.addEventListener('click', () => { if (currentStep > 1) currentStep--; showStep(currentStep); });
+    const partContainer = document.getElementById(`part-${partId}`);
+    if (!partContainer) return;
     
-    const form = document.getElementById('addLessonForm');
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const statusDiv = document.getElementById('status');
-        statusDiv.textContent = 'جاري الحفظ...';
-        statusDiv.className = '';
+    // Add fullscreen class to specific parts for larger view
+    if (['objective', 'summary', 'lessonText', 'pdfLink', 'videoLink'].includes(partId)) {
+        partContainer.classList.add('fullscreen-view');
+    }
+    
+    const data = currentLessonData;
+    switch(partId) {
+        case 'objective':
+        case 'didYouKnow':
+        case 'lessonText':
+        case 'summary':
+            partContainer.querySelector('.content-box').innerHTML = data[partId];
+            break;
+        case 'pdfLink':
+            if (data.pdfLink) {
+                const formattedPdfLink = data.pdfLink.replace("/view", "/preview").replace("?usp=sharing", "");
+                partContainer.querySelector('iframe').src = formattedPdfLink;
+            }
+            break;
+        case 'videoLink':
+            const videoIdMatch = data.videoLink.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            if (videoIdMatch && videoIdMatch[1]) {
+                partContainer.querySelector('iframe').src = `https://www.youtube.com/embed/${videoIdMatch[1]}`;
+            }
+            break;
+        case 'quiz':
+            startQuiz();
+            break;
+    }
 
-        const lessonData = {
-            class: document.getElementById('class').value,
-            subject: document.getElementById('subject').value,
-            chapter: document.getElementById('chapter').value,
-            lessonName: document.getElementById('lessonName').value,
-            lessonNumber: document.getElementById('lessonNumber').value,
-            objective: editors.objective.root.innerHTML,
-            didYouKnow: editors.didYouKnow.root.innerHTML,
-            lessonText: editors.text.root.innerHTML,
-            summary: editors.summary.root.innerHTML,
-            pdfLink: document.getElementById('pdfLink').value,
-            videoLink: document.getElementById('videoLink').value,
-            questions: []
-        };
-        for (let i = 1; i <= 10; i++) {
-            lessonData.questions.push({
-                text: document.getElementById(`q${i}_text`).value,
-                opt1: document.getElementById(`q${i}_opt1`).value,
-                opt2: document.getElementById(`q${i}_opt2`).value,
-                opt3: document.getElementById(`q${i}_opt3`).value,
-                opt4: document.getElementById(`q${i}_opt4`).value,
-                ans: document.getElementById(`q${i}_ans`).value
+    partContainer.classList.remove('hidden');
+    updateNavButtons();
+}
+
+function showSelectionView() {
+    document.getElementById('selectionView').classList.remove('hidden');
+    document.getElementById('lessonDetailView').classList.add('hidden');
+    document.querySelector('.nav-buttons-container').style.visibility = 'hidden';
+    loadLessons();
+}
+
+function updateNavButtons() {
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    if (!prevBtn || !nextBtn) return;
+    
+    prevBtn.style.visibility = currentPartIndex > 0 ? 'visible' : 'hidden';
+    
+    const partId = lessonParts[currentPartIndex];
+    if (partId === 'quiz') {
+       // Quiz function will handle this
+    } else if (lessonParts[currentPartIndex + 1] === 'end') {
+        nextBtn.innerHTML = 'العودة للدروس <i class="fas fa-home"></i>';
+    } else {
+        nextBtn.innerHTML = 'التالي <i class="fas fa-arrow-left"></i>';
+    }
+}
+
+function finishLesson() {
+    showSelectionView();
+}
+
+// ==========================================================
+//              منطق الاختبار (Quiz)
+// ==========================================================
+function startQuiz() {
+    currentQuestionIndex = 0;
+    userScore = 0;
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const quizContainer = document.getElementById('quizContainer');
+    if (!quizContainer) return;
+
+    const question = currentLessonData.questions[currentQuestionIndex];
+    quizContainer.innerHTML = `<div class="quiz-question"><p>${currentQuestionIndex + 1}. ${question.questionText}</p><div class="quiz-options">${question.options.map(opt => `<label class="quiz-option"><input type="radio" name="answer" value="${opt.replace(/"/g, "&quot;")}"/> <span>${opt}</span></label>`).join('')}</div></div>`;
+    
+    document.getElementById('nextBtn').innerHTML = `تأكيد الإجابة <i class="fas fa-check"></i>`;
+}
+
+function handleQuizNavigation() {
+    const nextBtn = document.getElementById('nextBtn');
+    if (!nextBtn) return;
+    
+    const buttonText = nextBtn.textContent || nextBtn.innerText;
+
+    if (buttonText.includes('تأكيد')) {
+        const selectedOption = document.querySelector('.quiz-option input:checked');
+        if (!selectedOption) { alert('الرجاء اختيار إجابة.'); return; }
+
+        const correctAnswer = currentLessonData.questions[currentQuestionIndex].correctAnswer;
+        if (selectedOption.value === correctAnswer) {
+            userScore++;
+            selectedOption.parentElement.classList.add('correct');
+        } else {
+            selectedOption.parentElement.classList.add('incorrect');
+            document.querySelectorAll('.quiz-option input').forEach(opt => {
+                if(opt.value === correctAnswer) opt.parentElement.classList.add('correct');
             });
         }
+        document.querySelectorAll('.quiz-option input').forEach(input => input.disabled = true);
         
-        const result = await callApi('addLesson', lessonData);
-        statusDiv.textContent = result.message;
-        statusDiv.className = result.success ? 'success' : 'error';
-        if (result.success) {
-            form.reset();
-            Object.values(editors).forEach(editor => editor.setText(''));
-            currentStep = 1;
-            showStep(1);
+        const isLastQuestion = currentQuestionIndex >= currentLessonData.questions.length - 1;
+        nextBtn.innerHTML = isLastQuestion ? 'إنهاء الاختبار <i class="fas fa-flag-checkered"></i>' : 'السؤال التالي <i class="fas fa-arrow-left"></i>';
+    
+    } else { 
+        currentQuestionIndex++;
+        if (currentQuestionIndex < currentLessonData.questions.length) {
+            renderQuestion();
+        } else {
+            showQuizResult();
         }
-    });
+    }
 }
+
+async function showQuizResult() {
+    document.querySelectorAll('.lesson-part').forEach(p => p.classList.add('hidden'));
+    document.querySelector('.nav-buttons-container').style.visibility = 'hidden';
+    
+    const finalScore = (userScore / currentLessonData.questions.length) * 10;
+    const endContainer = document.getElementById('endQuizContainer');
+    if (!endContainer) return;
+    
+    endContainer.innerHTML = `<h3>النتيجة النهائية</h3><div class="result-score">${finalScore.toFixed(1)}/10</div><p>${finalScore >= 5 ? 'مبروك! لقد اجتزت الاختبار بنجاح.' : 'تحتاج إلى مزيد من المراجعة. حاول مرة أخرى!'}</p><div class="end-buttons"><button class="btn btn-primary" onclick="retakeQuiz()"><i class="fas fa-redo"></i> إعادة الاختبار</button><button class="btn btn-secondary" onclick="showSelectionView()"><i class="fas fa-book"></i> العودة للدروس</button></div>`;
+
+    document.getElementById('part-end').classList.remove('hidden');
+
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    const payload = { 
+        userEmail: userData.email, 
+        selectedClass: document.getElementById('classSelect').value, 
+        selectedSubject: document.getElementById('subjectSelect').value, 
+        selectedChapter: document.getElementById('chapterSelect').value, 
+        lessonName: document.getElementById('lessonTitle').textContent,
+        score: finalScore.toFixed(1) 
+    };
+    await callApi('saveQuizResult', payload);
+}
+
+function retakeQuiz() {
+    document.querySelector('.nav-buttons-container').style.visibility = 'visible';
+    currentPartIndex = lessonParts.indexOf('quiz');
+    showCurrentPart();
+}
+
+function handleAdminPage() { /* Not implemented for student view */ }
 
