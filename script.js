@@ -84,7 +84,53 @@ function handleLoginPage() {
 }
 
 function handleRegisterPage() {
-     // Kept for completeness, no changes needed here
+    // تحميل أسئلة الأمان
+    const loadSecurityQuestions = async () => {
+        const result = await callApi('getSecurityQuestions');
+        if (result.success && result.questions) {
+            const secQSelect = document.getElementById('secQ');
+            secQSelect.innerHTML = result.questions.map((q, index) => 
+                `<option value="${index}">${q}</option>`
+            ).join('');
+        }
+    };
+
+    // معالجة تسجيل المستخدم
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                dob: document.getElementById('dob').value,
+                motherName: document.getElementById('motherName').value,
+                password: document.getElementById('password').value,
+                secQIndex: document.getElementById('secQ').value,
+                secQAnswer: document.getElementById('secA').value
+            };
+
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = 'جاري إنشاء الحساب...';
+            
+            const result = await callApi('register', payload);
+            if (result.success) {
+                messageEl.textContent = result.message;
+                messageEl.className = 'success';
+                registerForm.reset();
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+            } else {
+                messageEl.textContent = result.message;
+                messageEl.className = 'error';
+            }
+        });
+    }
+
+    // تحميل أسئلة الأمان عند فتح الصفحة
+    loadSecurityQuestions();
 }
 
 // ==========================================================
